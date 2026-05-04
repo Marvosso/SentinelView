@@ -1,0 +1,305 @@
+"""
+SentinelView — Plain English security policies generated from client onboarding profile.
+
+Produces Markdown and PDF outputs mapped to ISO/IEC 27001:2022 Annex A (illustrative).
+"""
+
+from __future__ import annotations
+
+import re
+from datetime import datetime, timezone
+from typing import Any, Mapping
+
+from export_report import _safe_pdf_text
+
+
+def stores_pii_categories(policy: Mapping[str, Any]) -> bool:
+    """True when onboarding captured any data-sensitivity category (PII / regulated data)."""
+    ds = policy.get("data_sensitivity")
+    if isinstance(ds, list) and len(ds) > 0:
+        return True
+    return False
+
+
+def has_remote_workforce(policy: Mapping[str, Any]) -> bool:
+    """True when workforce model is hybrid / remote."""
+    return str(policy.get("workforce_model", "onsite")).strip() == "remote"
+
+
+def _sensitivity_plain(policy: Mapping[str, Any]) -> str:
+    ids = policy.get("data_sensitivity")
+    if not isinstance(ids, list) or not ids:
+        return "(none specified)"
+    labels = {
+        "ssn": "government identifiers / SSN-class data",
+        "pci": "payment card / PCI-scoped data",
+        "phi": "health information / PHI-class data",
+        "contact_only": "basic contact data (e.g. email)",
+    }
+    return ", ".join(labels.get(x, x) for x in ids if isinstance(x, str))
+
+
+def _regs_plain(policy: Mapping[str, Any]) -> str:
+    r = policy.get("regulatory_targets")
+    if not isinstance(r, list) or not r:
+        return "general business compliance"
+    pretty = {
+        "SOC2": "SOC 2",
+        "HIPAA": "HIPAA",
+        "GDPR": "GDPR",
+        "PCI_DSS": "PCI DSS",
+    }
+    return ", ".join(pretty.get(x, str(x)) for x in r)
+
+
+def generate_data_handling_policy(
+    policy: Mapping[str, Any],
+    organization: str,
+) -> str:
+    """Plain English Data Handling policy with ISO 27001 Annex A mapping table."""
+    org = (organization or "Organization").strip() or "Organization"
+    bt = str(policy.get("business_type", "General / Other"))
+    sens = _sensitivity_plain(policy)
+    regs = _regs_plain(policy)
+    al = policy.get("alert_sensitivity") or {}
+    pii_tier = str(al.get("pii_in_public_path", "—"))
+
+    return f"""# Data Handling & Protection Policy
+
+**Organization:** {org}  
+**Business profile:** {bt}  
+**Data categories in scope (from onboarding):** {sens}  
+**Regulatory / assurance focus:** {regs}  
+**SentinelView monitoring posture (PII in public-style paths):** {pii_tier}
+
+---
+
+## 1. Purpose
+
+This policy defines how **{org}** protects personal and sensitive information across systems,
+applications, and shared locations. It is written in plain language for operational teams and
+leadership. Technical monitoring (including SentinelView privacy findings) supports these rules.
+
+## 2. Plain English requirements
+
+1. **Know what you hold.** Maintain an inventory of systems and repositories where the data
+   categories above may appear (including cloud drives, shared folders, and SaaS tools).
+
+2. **Limit exposure.** Sensitive data must not reside in broadly shared or “public-style”
+   locations unless explicitly approved and additionally controlled (e.g. encryption, access
+   restrictions, DLP).
+
+3. **Minimize copies.** Create, move, or duplicate sensitive data only when necessary for a
+   documented business purpose; prefer centralized secure stores (e.g. vaults, approved CRM,
+   approved DBs).
+
+4. **Retention & disposal.** Follow approved retention schedules; securely delete or anonymize
+   data when no longer required.
+
+5. **Vendor & subprocessors.** When vendors process this data, ensure contracts and reviews
+   reflect these expectations (due diligence, breach notification, appropriate safeguards).
+
+6. **Training.** Personnel who handle regulated or sensitive data receive awareness training
+   appropriate to their role and to **{regs}** where applicable.
+
+7. **Incident readiness.** Suspected unauthorized exposure triggers internal escalation per
+   your incident-response playbook (including privacy/legal notification where required).
+
+---
+
+## 3. Framework mapping (illustrative)
+
+| Policy theme | ISO/IEC 27001:2022 Annex A (illustrative) | Notes |
+| --- | --- | --- |
+| Inventory & classification of information | **A.5.12** Classification of information | Map data categories ({sens}) to handling rules. |
+| Protection of PII | **A.5.34** Privacy and protection of PII | Align with GDPR/HIPAA expectations where in scope. |
+| Protection of records | **A.5.33** Protection of records | Shared drives, backups, exports. |
+| Data leakage prevention | **A.8.12** Data leakage prevention | DLP, monitoring, SentinelView privacy alerts. |
+| Secure authentication | **A.5.17** Authentication information | Protect credentials for systems holding sensitive data. |
+| Cryptography | **A.8.24** Use of cryptography | Where required for confidentiality of stored/transmitted data. |
+
+---
+
+## 4. Document control
+
+_Generated by SentinelView from the onboarding profile. Customize ownership, version, and
+approval signatures under your own policy governance._
+
+**Generated (UTC):** {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}  
+"""
+
+
+def generate_access_control_policy(
+    policy: Mapping[str, Any],
+    organization: str,
+) -> str:
+    """Plain English Access Control policy for hybrid/remote workforce with ISO mapping."""
+    org = (organization or "Organization").strip() or "Organization"
+    bt = str(policy.get("business_type", "General / Other"))
+    regs = _regs_plain(policy)
+
+    return f"""# Access Control Policy
+
+**Organization:** {org}  
+**Business profile:** {bt}  
+**Workforce model:** Hybrid or remote employees (per onboarding)  
+**Regulatory / assurance focus:** {regs}
+
+---
+
+## 1. Purpose
+
+This policy defines how **{org}** grants, reviews, and revokes access to information systems
+when employees and contractors work outside traditional office boundaries. It complements
+identity and access management controls required by **{regs}** where applicable.
+
+## 2. Plain English requirements
+
+1. **Unique identities.** Each person uses individual accounts (no shared logins) for
+   production systems and collaboration tools.
+
+2. **Least privilege.** Access rights default to the minimum needed for the role; elevated or
+   administrative access requires approval and periodic review.
+
+3. **Secure remote access.** Remote connectivity uses approved methods only (e.g. corporate VPN,
+   Zero Trust access, managed devices). Split tunneling and personal devices must follow IT risk
+   acceptance rules.
+
+4. **Authentication strength.** Multi-factor authentication (MFA) is required for remote access
+   to critical systems, cloud admin consoles, and email where supported.
+
+5. **Joiner / mover / leaver.** HR or authoritative roster changes trigger timely updates to
+   access (including immediate revocation on termination).
+
+6. **Privileged access.** Administrative roles are limited, monitored, and reviewed (including
+   periodic validation against HR or authoritative identity sources).
+
+7. **Logging & accountability.** Security-relevant events are retained per organizational policy
+   to support investigation and audit.
+
+---
+
+## 3. Framework mapping (illustrative)
+
+| Policy theme | ISO/IEC 27001:2022 Annex A (illustrative) | Notes |
+| --- | --- | --- |
+| Access control policy & rules | **A.5.15** Access control | Baseline for who may access what. |
+| Identity management | **A.5.16** Identity management | Lifecycle from hire to exit. |
+| Authentication information | **A.5.17** Authentication information | Passwords, MFA secrets, recovery flows. |
+| Access rights / provisioning | **A.5.18** Access rights | Reviews and recertification. |
+| Privileged access | **A.8.2** Privileged access rights | Admin, break-glass, emergency access. |
+| Secure authentication | **A.5.3** Authentication | Strong authentication for remote sessions. |
+| Teleworking | **A.6.7** Remote working | Controls for off-site work arrangements. |
+
+---
+
+## 4. Document control
+
+_Generated by SentinelView from the onboarding profile. Customize ownership, version, and
+approval signatures under your own policy governance._
+
+**Generated (UTC):** {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}  
+"""
+
+
+def generate_policies_from_onboarding(
+    policy: Mapping[str, Any],
+    organization: str,
+) -> dict[str, str]:
+    """
+    Return mapping of policy title → Markdown body.
+
+    Data Handling is emitted when data sensitivity categories were selected.
+    Access Control is emitted when workforce model is remote/hybrid.
+    """
+    out: dict[str, str] = {}
+    if stores_pii_categories(policy):
+        out["Data Handling Policy"] = generate_data_handling_policy(policy, organization)
+    if has_remote_workforce(policy):
+        out["Access Control Policy"] = generate_access_control_policy(policy, organization)
+    return out
+
+
+def policies_markdown_bundle(policies: dict[str, str], organization: str) -> str:
+    """Single Markdown document combining all generated policies."""
+    org = (organization or "Organization").strip() or "Organization"
+    lines = [
+        f"# Security Policy Package — {org}",
+        "",
+        f"_Generated (UTC): {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}_",
+        "",
+        "---",
+        "",
+    ]
+    for title, body in policies.items():
+        lines.append(body.strip())
+        lines.extend(["", "---", ""])
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def build_policies_pdf_bytes(
+    policies: dict[str, str],
+    *,
+    organization: str = "Organization",
+    generated_utc: datetime | None = None,
+) -> bytes:
+    """Render combined policies as a PDF (fpdf2)."""
+    try:
+        from fpdf import FPDF
+    except ImportError as e:
+        raise ImportError(
+            "PDF export requires fpdf2. Install with: pip install fpdf2"
+        ) from e
+
+    gen = generated_utc or datetime.now(timezone.utc)
+    gen_s = gen.strftime("%Y-%m-%d %H:%M:%S UTC")
+    org_plain = (organization or "Organization").strip() or "Organization"
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=14)
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.multi_cell(0, 8, _safe_pdf_text("Security Policy Package"))
+    pdf.ln(2)
+    pdf.set_font("Helvetica", size=10)
+    pdf.multi_cell(
+        0,
+        5,
+        _safe_pdf_text(
+            f"Prepared for: {org_plain}\n"
+            f"Generated (UTC): {gen_s}\n"
+            "Source: SentinelView Policy Generation Engine (fpdf2). "
+            "Framework mapping in the Markdown is illustrative; legal review is recommended."
+        ),
+    )
+    pdf.ln(4)
+
+    for title, md_body in policies.items():
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.multi_cell(0, 7, _safe_pdf_text(title))
+        pdf.ln(2)
+        pdf.set_font("Helvetica", size=9)
+        plain = _markdown_to_plain_paragraphs(md_body)
+        pdf.multi_cell(0, 5, _safe_pdf_text(plain))
+
+    out = pdf.output(dest="S")
+    if isinstance(out, (bytes, bytearray)):
+        return bytes(out)
+    return str(out).encode("latin-1")
+
+
+def _markdown_to_plain_paragraphs(md: str) -> str:
+    """Strip Markdown syntax lightly for PDF readability (fpdf2 Helvetica)."""
+    text = md.replace("\r\n", "\n")
+    # Drop heading hashes at line starts
+    lines = []
+    for line in text.split("\n"):
+        s = re.sub(r"^#+\s*", "", line)
+        s = re.sub(r"\*\*(.+?)\*\*", r"\1", s)
+        s = re.sub(r"`([^`]+)`", r"\1", s)
+        lines.append(s)
+    # Collapse excessive blank lines
+    out = "\n".join(lines)
+    out = re.sub(r"\n{3,}", "\n\n", out)
+    return out.strip()

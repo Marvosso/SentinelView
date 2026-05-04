@@ -1,0 +1,5 @@
+# Optional: Supabase mirror (event_db → cloud). Not required for local Streamlit dashboard.
+# On Windows + Python 3.14, transitive deps may try to compile pyiceberg — install
+# "Microsoft C++ Build Tools" from Visual Studio, use Python 3.12/3.13, or install
+# only when you enable SUPABASE_* env vars.
+supabase>=2.3.0

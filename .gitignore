@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.venv/
+venv/
+.env
+.env.*
+
+# Local / data
+*.sqlite
+*.sqlite3
+*.db
+
+# Next.js (dashboard-ui-reference)
+dashboard-ui-reference/node_modules/
+dashboard-ui-reference/.next/
+dashboard-ui-reference/out/
+dashboard-ui-reference/.turbo/
+dashboard-ui-reference/*.tsbuildinfo
+dashboard-ui-reference/.vercel/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/

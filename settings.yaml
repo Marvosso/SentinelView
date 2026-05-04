@@ -1,0 +1,19 @@
+# SentinelView — analysis configuration
+# pii_keywords: substrings matched in File_Path (case-insensitive) in addition to the
+#               PII_Detected column in privacy_scan.csv.
+# public_path_segments: path markers treated as exposure (PII + marker = HIGH risk).
+# secure_path_segments: if matched, suppresses the public+PII HIGH rule (trusted zone).
+
+pii_keywords:
+  - Account Number
+  - SSN
+  - Social Security
+  - Tax ID
+
+public_path_segments:
+  - public
+  - Shared
+
+secure_path_segments:
+  - Secure Vault
+  - Confidential
